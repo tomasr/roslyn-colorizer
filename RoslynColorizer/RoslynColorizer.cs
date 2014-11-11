@@ -9,27 +9,28 @@ using Microsoft.CodeAnalysis;
 using Microsoft.CodeAnalysis.Text;
 using System.Threading.Tasks;
 using Microsoft.CodeAnalysis.Classification;
+using Microsoft.VisualStudio.Text.Tagging;
 
 namespace RoslynColorizer {
 
-  [Export(typeof(IClassifierProvider))]
+  [Export(typeof(ITaggerProvider))]
   [ContentType("CSharp")]
   [ContentType("Basic")]
-  internal class RoslynColorizerProvider : IClassifierProvider {
+  [TagType(typeof(IClassificationTag))]
+  internal class RoslynColorizerProvider : ITaggerProvider {
     [Import]
     internal IClassificationTypeRegistryService ClassificationRegistry = null; // Set via MEF
 
-    public IClassifier GetClassifier(ITextBuffer buffer) {
-      return buffer.Properties.GetOrCreateSingletonProperty<RoslynColorizer>(delegate {
-        return new RoslynColorizer(buffer, ClassificationRegistry);
-      });
+    public ITagger<T> CreateTagger<T>(ITextBuffer buffer) where T : ITag {
+      return (ITagger<T>)new RoslynColorizer(buffer, ClassificationRegistry);
     }
   }
 
-  class RoslynColorizer : IClassifier {
+  class RoslynColorizer : ITagger<IClassificationTag> {
     private IClassificationType parameterType;
     private IClassificationType fieldType;
     private ITextBuffer theBuffer;
+    public event EventHandler<SnapshotSpanEventArgs> TagsChanged;
 
     internal RoslynColorizer(ITextBuffer buffer, IClassificationTypeRegistryService registry) {
       theBuffer = buffer;
@@ -37,31 +38,31 @@ namespace RoslynColorizer {
       fieldType = registry.GetClassificationType(Constants.FieldFormat);
     }
 
-    public IList<ClassificationSpan> GetClassificationSpans(SnapshotSpan span) {
+    public IEnumerable<ITagSpan<IClassificationTag>> GetTags(NormalizedSnapshotSpanCollection spans) {
+      if ( spans.Count == 0 ) {
+        return Enumerable.Empty<ITagSpan<IClassificationTag>>();
+      }
       var workspace = theBuffer.GetWorkspace();
       var docId = workspace.GetDocumentIdInCurrentContext(theBuffer.AsTextContainer());
       var doc = workspace.CurrentSolution.GetDocument(docId);
-      return GetClassificationSpansInt(workspace, doc, span);
+      return GetTagsImpl(workspace, doc, spans);
     }
 
-    private IList<ClassificationSpan> GetClassificationSpansInt(
-          Workspace workspace, Document doc, SnapshotSpan span) {
-      var list = new List<ClassificationSpan>();
+    private IEnumerable<ITagSpan<IClassificationTag>> GetTagsImpl(
+          Workspace workspace, Document doc,
+          NormalizedSnapshotSpanCollection spans) {
       SemanticModel model;
       if ( !doc.TryGetSemanticModel(out model) ) {
-        return list;
+        yield break;
       }
       SyntaxNode treeRoot;
       if ( !doc.TryGetSyntaxRoot(out treeRoot) ) {
-        return null;
+        yield break;
       }
-      var textSpan = TextSpan.FromBounds(span.Start, span.End);
-      var classifiedSpans = Classifier.GetClassifiedSpans(model, textSpan, workspace);
-      var comparer = StringComparer.InvariantCultureIgnoreCase;
+      var snapshot = spans[0].Snapshot;
 
-      var identifiers = from cs in classifiedSpans
-                        where comparer.Compare(cs.ClassificationType, "identifier") == 0
-                        select cs;
+      IEnumerable<ClassifiedSpan> identifiers = GetIdentifiersInSpans(workspace, model, spans);
+
       foreach ( var id in identifiers ) {
         var node = treeRoot.FindNode(id.TextSpan);
         var info = model.GetSymbolInfo(node);
@@ -69,18 +70,26 @@ namespace RoslynColorizer {
           continue;
         switch ( info.Symbol.Kind ) {
           case SymbolKind.Parameter:
-            list.Add(id.TextSpan.ToClassifiedSpan(span.Snapshot, parameterType));
+            yield return id.TextSpan.ToTagSpan(snapshot, parameterType);
             break;
           case SymbolKind.Field:
-            list.Add(id.TextSpan.ToClassifiedSpan(span.Snapshot, fieldType));
+            yield return id.TextSpan.ToTagSpan(snapshot, fieldType);
             break;
         }
       }
-      return list;
     }
 
-#pragma warning disable 67
-    public event EventHandler<ClassificationChangedEventArgs> ClassificationChanged;
-#pragma warning restore 67
+    private IEnumerable<ClassifiedSpan> GetIdentifiersInSpans(Workspace workspace, SemanticModel model, NormalizedSnapshotSpanCollection spans) {
+      var comparer = StringComparer.InvariantCultureIgnoreCase;
+      var classifiedSpans =
+        spans.SelectMany(span => {
+          var textSpan = TextSpan.FromBounds(span.Start, span.End);
+          return Classifier.GetClassifiedSpans(model, textSpan, workspace);
+        });
+
+      return from cs in classifiedSpans
+             where comparer.Compare(cs.ClassificationType, "identifier") == 0
+             select cs;
+    }
   }
 }
