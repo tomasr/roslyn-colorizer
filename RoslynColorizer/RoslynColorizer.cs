@@ -30,7 +30,9 @@ namespace RoslynColorizer {
     private IClassificationType parameterType;
     private IClassificationType fieldType;
     private ITextBuffer theBuffer;
+#pragma warning disable CS0067
     public event EventHandler<SnapshotSpanEventArgs> TagsChanged;
+#pragma warning restore CS0067
 
     internal RoslynColorizer(ITextBuffer buffer, IClassificationTypeRegistryService registry) {
       theBuffer = buffer;
