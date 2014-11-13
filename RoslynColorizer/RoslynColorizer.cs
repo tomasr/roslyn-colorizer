@@ -45,8 +45,7 @@ namespace RoslynColorizer {
         return Enumerable.Empty<ITagSpan<IClassificationTag>>();
       }
       var workspace = theBuffer.GetWorkspace();
-      var docId = workspace.GetDocumentIdInCurrentContext(theBuffer.AsTextContainer());
-      var doc = workspace.CurrentSolution.GetDocument(docId);
+      var doc = spans[0].Snapshot.GetOpenDocumentInCurrentContextWithChanges();
       return GetTagsImpl(workspace, doc, spans);
     }
 
@@ -66,11 +65,16 @@ namespace RoslynColorizer {
       IEnumerable<ClassifiedSpan> identifiers = GetIdentifiersInSpans(workspace, model, spans);
 
       foreach ( var id in identifiers ) {
+        String str1 = String.Format("{0}", snapshot.GetText(id.TextSpan.Start, id.TextSpan.Length));
         var node = treeRoot.FindNode(id.TextSpan);
-        var info = model.GetSymbolInfo(node);
-        if ( info.Symbol == null )
+        var symbol = model.GetSymbolInfo(node).Symbol;
+        if ( symbol == null ) {
+          symbol = model.GetSymbolInfo(GetExpression(node)).Symbol;
+        }
+        if ( symbol == null ) {
           continue;
-        switch ( info.Symbol.Kind ) {
+        }
+        switch ( symbol.Kind ) {
           case SymbolKind.Parameter:
             yield return id.TextSpan.ToTagSpan(snapshot, parameterType);
             break;
@@ -79,6 +83,15 @@ namespace RoslynColorizer {
             break;
         }
       }
+    }
+
+    private SyntaxNode GetExpression(SyntaxNode node) {
+      if ( node.CSharpKind() == Microsoft.CodeAnalysis.CSharp.SyntaxKind.Argument ) {
+        return ((Microsoft.CodeAnalysis.CSharp.Syntax.ArgumentSyntax)node).Expression;
+      } else if ( node.VBKind() == Microsoft.CodeAnalysis.VisualBasic.SyntaxKind.SimpleArgument ) {
+        return ((Microsoft.CodeAnalysis.VisualBasic.Syntax.SimpleArgumentSyntax)node).Expression;
+      }
+      return node;
     }
 
     private IEnumerable<ClassifiedSpan> GetIdentifiersInSpans(Workspace workspace, SemanticModel model, NormalizedSnapshotSpanCollection spans) {

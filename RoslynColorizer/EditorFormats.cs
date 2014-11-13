@@ -8,7 +8,7 @@ namespace RoslynColorizer {
   [ClassificationType(ClassificationTypeNames = Constants.ParameterFormat)]
   [Name(Constants.ParameterFormat)]
   [UserVisible(true)]
-  [Order(Before = Priority.Default)]
+  [Order(After = Priority.Default)]
   internal sealed class RoslynParameterFormat : ClassificationFormatDefinition {
     public RoslynParameterFormat() {
       this.DisplayName = "Roslyn Parameter";
@@ -20,7 +20,7 @@ namespace RoslynColorizer {
   [ClassificationType(ClassificationTypeNames = Constants.FieldFormat)]
   [Name(Constants.FieldFormat)]
   [UserVisible(true)]
-  [Order(Before = Priority.Default)]
+  [Order(After = Priority.Default)]
   internal sealed class RoslynFieldFormat : ClassificationFormatDefinition {
     public RoslynFieldFormat() {
       this.DisplayName = "Roslyn Field";

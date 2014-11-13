@@ -2,6 +2,7 @@
 using Microsoft.VisualStudio.Text;
 using Microsoft.VisualStudio.Text.Classification;
 using Microsoft.VisualStudio.Text.Tagging;
+using System;
 
 namespace RoslynColorizer {
   public static class Extensions {
@@ -10,6 +11,9 @@ namespace RoslynColorizer {
         new SnapshotSpan(snapshot, span.Start, span.Length),
         new ClassificationTag(classificationType)
         );
+    }
+    public static String GetText(this ITextSnapshot snapshot, TextSpan span) {
+      return snapshot.GetText(new Span(span.Start, span.Length));
     }
   }
 }
