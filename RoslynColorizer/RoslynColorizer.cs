@@ -7,9 +7,10 @@ using Microsoft.VisualStudio.Text.Classification;
 using Microsoft.VisualStudio.Utilities;
 using Microsoft.CodeAnalysis;
 using Microsoft.CodeAnalysis.Text;
-using System.Threading.Tasks;
 using Microsoft.CodeAnalysis.Classification;
 using Microsoft.VisualStudio.Text.Tagging;
+using CSharp = Microsoft.CodeAnalysis.CSharp;
+using VB = Microsoft.CodeAnalysis.VisualBasic;
 
 namespace RoslynColorizer {
 
@@ -85,10 +86,10 @@ namespace RoslynColorizer {
     }
 
     private SyntaxNode GetExpression(SyntaxNode node) {
-      if ( node.CSharpKind() == Microsoft.CodeAnalysis.CSharp.SyntaxKind.Argument ) {
-        return ((Microsoft.CodeAnalysis.CSharp.Syntax.ArgumentSyntax)node).Expression;
-      } else if ( node.VBKind() == Microsoft.CodeAnalysis.VisualBasic.SyntaxKind.SimpleArgument ) {
-        return ((Microsoft.CodeAnalysis.VisualBasic.Syntax.SimpleArgumentSyntax)node).Expression;
+      if ( node.CSharpKind() == CSharp.SyntaxKind.Argument ) {
+        return ((CSharp.Syntax.ArgumentSyntax)node).Expression;
+      } else if ( node.VBKind() == VB.SyntaxKind.SimpleArgument ) {
+        return ((VB.Syntax.SimpleArgumentSyntax)node).Expression;
       }
       return node;
     }
