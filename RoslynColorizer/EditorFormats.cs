@@ -12,7 +12,8 @@ namespace RoslynColorizer {
   internal sealed class RoslynParameterFormat : ClassificationFormatDefinition {
     public RoslynParameterFormat() {
       this.DisplayName = "Roslyn Parameter";
-      this.ForegroundColor = Colors.Gray;
+      this.BackgroundColor = Colors.AliceBlue;
+      this.BackgroundOpacity = 0.7;
     }
   }
 
@@ -24,7 +25,8 @@ namespace RoslynColorizer {
   internal sealed class RoslynFieldFormat : ClassificationFormatDefinition {
     public RoslynFieldFormat() {
       this.DisplayName = "Roslyn Field";
-      this.ForegroundColor = Colors.LightCoral;
+      this.BackgroundColor = Colors.LavenderBlush;
+      this.BackgroundOpacity = 0.7;
     }
   }
 }

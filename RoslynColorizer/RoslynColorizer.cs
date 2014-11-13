@@ -11,6 +11,7 @@ using Microsoft.CodeAnalysis.Classification;
 using Microsoft.VisualStudio.Text.Tagging;
 using CSharp = Microsoft.CodeAnalysis.CSharp;
 using VB = Microsoft.CodeAnalysis.VisualBasic;
+using System.Threading.Tasks;
 
 namespace RoslynColorizer {
 
@@ -45,32 +46,29 @@ namespace RoslynColorizer {
       if ( spans.Count == 0 ) {
         return Enumerable.Empty<ITagSpan<IClassificationTag>>();
       }
-      var workspace = theBuffer.GetWorkspace();
-      var doc = spans[0].Snapshot.GetOpenDocumentInCurrentContextWithChanges();
-      return GetTagsImpl(workspace, doc, spans);
+      // this makes me feel dirty, but otherwise it will not
+      // work reliably, as TryGetSemanticModel() often will return false
+      // should make this into a completely async process somehow
+      var task = RoslynDocument.Resolve(theBuffer, spans[0].Snapshot);
+      task.Wait();
+      if ( task.IsFaulted ) {
+        // TODO: report this to someone.
+        return Enumerable.Empty<ITagSpan<IClassificationTag>>();
+      }
+      return GetTagsImpl(task.Result, spans);
     }
 
     private IEnumerable<ITagSpan<IClassificationTag>> GetTagsImpl(
-          Workspace workspace, Document doc,
+          RoslynDocument doc,
           NormalizedSnapshotSpanCollection spans) {
-      SemanticModel model;
-      if ( !doc.TryGetSemanticModel(out model) ) {
-        yield break;
-      }
-      SyntaxNode treeRoot;
-      if ( !doc.TryGetSyntaxRoot(out treeRoot) ) {
-        yield break;
-      }
       var snapshot = spans[0].Snapshot;
 
-      IEnumerable<ClassifiedSpan> identifiers = GetIdentifiersInSpans(workspace, model, spans);
+      IEnumerable<ClassifiedSpan> identifiers = 
+        GetIdentifiersInSpans(doc.Workspace, doc.SemanticModel, spans);
 
       foreach ( var id in identifiers ) {
-        var node = treeRoot.FindNode(id.TextSpan);
-        var symbol = model.GetSymbolInfo(node).Symbol;
-        if ( symbol == null ) {
-          symbol = model.GetSymbolInfo(GetExpression(node)).Symbol;
-        }
+        var node = doc.SyntaxRoot.FindNode(id.TextSpan);
+        var symbol = doc.SemanticModel.GetSymbolInfo(GetExpression(node)).Symbol;
         if ( symbol == null ) {
           continue;
         }
@@ -94,7 +92,9 @@ namespace RoslynColorizer {
       return node;
     }
 
-    private IEnumerable<ClassifiedSpan> GetIdentifiersInSpans(Workspace workspace, SemanticModel model, NormalizedSnapshotSpanCollection spans) {
+    private IEnumerable<ClassifiedSpan> GetIdentifiersInSpans(
+          Workspace workspace, SemanticModel model,
+          NormalizedSnapshotSpanCollection spans) {
       var comparer = StringComparer.InvariantCultureIgnoreCase;
       var classifiedSpans =
         spans.SelectMany(span => {
@@ -105,6 +105,31 @@ namespace RoslynColorizer {
       return from cs in classifiedSpans
              where comparer.Compare(cs.ClassificationType, "identifier") == 0
              select cs;
+    }
+
+    public class RoslynDocument {
+      public Workspace Workspace { get; private set; }
+      public Document Document { get; private set; }
+      public SemanticModel SemanticModel { get; private set; }
+      public SyntaxNode SyntaxRoot { get; private set; }
+
+      private RoslynDocument() {
+      }
+
+      public static async Task<RoslynDocument> Resolve(ITextBuffer buffer, ITextSnapshot snapshot) {
+        var workspace = buffer.GetWorkspace();
+        var document = snapshot.GetOpenDocumentInCurrentContextWithChanges();
+        // the ConfigureAwait() calls are important,
+        // otherwise we'll deadlock VS
+        var semanticModel = await document.GetSemanticModelAsync().ConfigureAwait(false);
+        var syntaxRoot = await document.GetSyntaxRootAsync().ConfigureAwait(false);
+        return new RoslynDocument {
+          Workspace = workspace,
+          Document = document,
+          SemanticModel = semanticModel,
+          SyntaxRoot = syntaxRoot
+        };
+      }
     }
   }
 }
