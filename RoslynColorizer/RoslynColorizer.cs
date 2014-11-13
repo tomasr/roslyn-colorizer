@@ -77,7 +77,9 @@ namespace RoslynColorizer {
             yield return id.TextSpan.ToTagSpan(snapshot, parameterType);
             break;
           case SymbolKind.Field:
-            yield return id.TextSpan.ToTagSpan(snapshot, fieldType);
+            if ( symbol.ContainingType.TypeKind != TypeKind.Enum ) {
+              yield return id.TextSpan.ToTagSpan(snapshot, fieldType);
+            }
             break;
         }
       }
