@@ -65,7 +65,6 @@ namespace RoslynColorizer {
       IEnumerable<ClassifiedSpan> identifiers = GetIdentifiersInSpans(workspace, model, spans);
 
       foreach ( var id in identifiers ) {
-        String str1 = String.Format("{0}", snapshot.GetText(id.TextSpan.Start, id.TextSpan.Length));
         var node = treeRoot.FindNode(id.TextSpan);
         var symbol = model.GetSymbolInfo(node).Symbol;
         if ( symbol == null ) {
