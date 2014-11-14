@@ -2,6 +2,7 @@
 using System.Windows.Media;
 using Microsoft.VisualStudio.Text.Classification;
 using Microsoft.VisualStudio.Utilities;
+using System.Windows;
 
 namespace RoslynColorizer {
   [Export(typeof(EditorFormatDefinition))]
@@ -25,6 +26,18 @@ namespace RoslynColorizer {
     public RoslynFieldFormat() {
       this.DisplayName = "Roslyn Field";
       this.ForegroundColor = Colors.SaddleBrown;
+    }
+  }
+
+  [Export(typeof(EditorFormatDefinition))]
+  [ClassificationType(ClassificationTypeNames = Constants.ExtensionMethodFormat)]
+  [Name(Constants.ExtensionMethodFormat)]
+  [UserVisible(true)]
+  [Order(After = Priority.Default)]
+  internal sealed class RoslynExtensionMethodFormat : ClassificationFormatDefinition {
+    public RoslynExtensionMethodFormat() {
+      this.DisplayName = "Roslyn Extension Method";
+      this.IsItalic = true;
     }
   }
 }

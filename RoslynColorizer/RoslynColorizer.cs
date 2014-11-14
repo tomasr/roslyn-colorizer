@@ -1,17 +1,17 @@
-﻿using System;
+﻿using Microsoft.CodeAnalysis;
+using Microsoft.CodeAnalysis.Classification;
+using Microsoft.CodeAnalysis.Text;
+using Microsoft.VisualStudio.Text;
+using Microsoft.VisualStudio.Text.Classification;
+using Microsoft.VisualStudio.Text.Tagging;
+using Microsoft.VisualStudio.Utilities;
+using System;
 using System.Collections.Generic;
 using System.ComponentModel.Composition;
 using System.Linq;
-using Microsoft.VisualStudio.Text;
-using Microsoft.VisualStudio.Text.Classification;
-using Microsoft.VisualStudio.Utilities;
-using Microsoft.CodeAnalysis;
-using Microsoft.CodeAnalysis.Text;
-using Microsoft.CodeAnalysis.Classification;
-using Microsoft.VisualStudio.Text.Tagging;
+using System.Threading.Tasks;
 using CSharp = Microsoft.CodeAnalysis.CSharp;
 using VB = Microsoft.CodeAnalysis.VisualBasic;
-using System.Threading.Tasks;
 
 namespace RoslynColorizer {
 
@@ -31,7 +31,9 @@ namespace RoslynColorizer {
   class RoslynColorizer : ITagger<IClassificationTag> {
     private IClassificationType parameterType;
     private IClassificationType fieldType;
+    private IClassificationType extensionMethodType;
     private ITextBuffer theBuffer;
+    private RoslynDocument cache;
 #pragma warning disable CS0067
     public event EventHandler<SnapshotSpanEventArgs> TagsChanged;
 #pragma warning restore CS0067
@@ -40,22 +42,26 @@ namespace RoslynColorizer {
       theBuffer = buffer;
       parameterType = registry.GetClassificationType(Constants.ParameterFormat);
       fieldType = registry.GetClassificationType(Constants.FieldFormat);
+      extensionMethodType = registry.GetClassificationType(Constants.ExtensionMethodFormat);
     }
 
     public IEnumerable<ITagSpan<IClassificationTag>> GetTags(NormalizedSnapshotSpanCollection spans) {
       if ( spans.Count == 0 ) {
         return Enumerable.Empty<ITagSpan<IClassificationTag>>();
       }
-      // this makes me feel dirty, but otherwise it will not
-      // work reliably, as TryGetSemanticModel() often will return false
-      // should make this into a completely async process somehow
-      var task = RoslynDocument.Resolve(theBuffer, spans[0].Snapshot);
-      task.Wait();
-      if ( task.IsFaulted ) {
-        // TODO: report this to someone.
-        return Enumerable.Empty<ITagSpan<IClassificationTag>>();
+      if ( this.cache == null || this.cache.Snapshot != spans[0].Snapshot ) {
+        // this makes me feel dirty, but otherwise it will not
+        // work reliably, as TryGetSemanticModel() often will return false
+        // should make this into a completely async process somehow
+        var task = RoslynDocument.Resolve(theBuffer, spans[0].Snapshot);
+        task.Wait();
+        if ( task.IsFaulted ) {
+          // TODO: report this to someone.
+          return Enumerable.Empty<ITagSpan<IClassificationTag>>();
+        }
+        cache = task.Result;
       }
-      return GetTagsImpl(task.Result, spans);
+      return GetTagsImpl(this.cache, spans);
     }
 
     private IEnumerable<ITagSpan<IClassificationTag>> GetTagsImpl(
@@ -81,8 +87,18 @@ namespace RoslynColorizer {
               yield return id.TextSpan.ToTagSpan(snapshot, fieldType);
             }
             break;
+          case SymbolKind.Method:
+            if ( IsExtensionMethod(symbol) ) {
+              yield return id.TextSpan.ToTagSpan(snapshot, extensionMethodType);
+            }
+            break;
         }
       }
+    }
+
+    private bool IsExtensionMethod(ISymbol symbol) {
+      var method = (IMethodSymbol)symbol;
+      return method.IsExtensionMethod;
     }
 
     private SyntaxNode GetExpression(SyntaxNode node) {
@@ -114,6 +130,7 @@ namespace RoslynColorizer {
       public Document Document { get; private set; }
       public SemanticModel SemanticModel { get; private set; }
       public SyntaxNode SyntaxRoot { get; private set; }
+      public ITextSnapshot Snapshot { get; private set; }
 
       private RoslynDocument() {
       }
@@ -129,7 +146,8 @@ namespace RoslynColorizer {
           Workspace = workspace,
           Document = document,
           SemanticModel = semanticModel,
-          SyntaxRoot = syntaxRoot
+          SyntaxRoot = syntaxRoot,
+          Snapshot = snapshot
         };
       }
     }

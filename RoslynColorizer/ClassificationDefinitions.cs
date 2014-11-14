@@ -11,5 +11,9 @@ namespace RoslynColorizer {
     [Export(typeof(ClassificationTypeDefinition))]
     [Name(Constants.FieldFormat)]
     internal static ClassificationTypeDefinition FieldType = null;
+
+    [Export(typeof(ClassificationTypeDefinition))]
+    [Name(Constants.ExtensionMethodFormat)]
+    internal static ClassificationTypeDefinition ExtensionMethodType = null;
   }
 }
