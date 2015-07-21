@@ -1,15 +1,18 @@
 <?xml version="1.0" encoding="utf-8"?>
 <PackageManifest Version="2.0.0" xmlns="http://schemas.microsoft.com/developer/vsx-schema/2011" xmlns:d="http://schemas.microsoft.com/developer/vsx-schema-design/2011">
   <Metadata>
-    <Identity Id="RoslynColorizer..23e22bb8-3082-40bb-8627-42a77ac7d1fe" Version="1.0" Language="en-US" Publisher="Tomas Restrepo" />
+    <Identity Id="RoslynColorizer..23e22bb8-3082-40bb-8627-42a77ac7d1fe" Version="1.0" Language="en-US" Publisher="Tomas Restrepo, Andreas Reischuck" />
     <DisplayName>RoslynColorizer</DisplayName>
-    <Description>This is a sample classifier extension to the Visual Studio Editor.</Description>
+    <Description xml:space="preserve">This is a Roslyn based syntax classifier extension to the Visual Studio Editor for C# and Visual Basic.</Description>
+    <MoreInfo>https://github.com/tomasr/roslyn-colorizer</MoreInfo>
+    <Icon>rainbow.png</Icon>
+    <Tags>Syntax Highlighting</Tags>
   </Metadata>
   <Installation>
     <InstallationTarget Id="Microsoft.VisualStudio.Pro" Version="14.0" />
   </Installation>
   <Dependencies>
-    <Dependency Id="Microsoft.Framework.NDP" DisplayName="Microsoft .NET Framework" d:Source="Manual" Version="4.5" />
+    <Dependency d:Source="Installed" Version="[1.0.0.50618,2.0)" Id="0b5e8ddb-f12d-4131-a71d-77acc26a798f" DisplayName="Roslyn Language Services" />
   </Dependencies>
   <Assets>
     <Asset Type="Microsoft.VisualStudio.MefComponent" d:Source="Project" d:ProjectName="%CurrentProject%" Path="|%CurrentProject%|" />
