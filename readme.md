@@ -9,4 +9,4 @@ colors to make them easily recognizable.
 The code is fairly simple, but it is not currently written using the
 Async APIs in Roslyn.
 
-This sample is based on the VS2015 preview.
+This sample is based on the VS2015 RTM.
